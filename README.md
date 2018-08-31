@@ -1,5 +1,5 @@
 ---
-page: https://idle.run/opencv-raspi
+page: https://idle.run/opencv-mjpeg-fps
 title: "OpenCV V4L High FPS MJPEG Support"
 tags: opencv c++ v4l
 date: 2018-08-31

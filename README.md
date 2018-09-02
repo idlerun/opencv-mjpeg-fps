@@ -100,25 +100,62 @@ https://github.com/opencv/opencv/blob/master/modules/videoio/src/cap_v4l.cpp#L43
 
 ## Solution
 
-Thankfully the solution is pretty simple, just a matter of modifying the `cvconfig.h` generated during the OpenCV build
+The conditions for enabling `cap_v4l.cpp` or `cap_libv4l.cpp` is based on the defines `HAVE_CAMV4L2` or `HAVE_LIBV4L` respectively. The `cap_v4l` implementation is normally enabled when `HAVE_CAMV4L2` is present and `HAVE_LIBV4L` is not.
 
-After running `cmake`, edit `cvconfig.h` to *remove* the definition of `HAVE_LIBV4L`.
-The `cap_v4l` implementation is enabled when `HAVE_CAMV4L2` is present and `HAVE_LIBV4L` is not.
+https://github.com/opencv/opencv/blob/b39cd06249213220e802bb64260727711d9fc98c/modules/videoio/CMakeLists.txt#L124
+
+There is almost certainly a better fix out there, but this build script worked well for me to just force off the `cap_libv4l` version.
+
 
 ```
+DIR=$(pwd)
+
+EXTRA_ARGS=""
+
+if [[ ! -d opencv_3.4 ]]; then
+  git clone --depth 1 --branch 3.4.2 https://github.com/opencv/opencv.git opencv_3.4
+fi
+
+## optional add-on with
+# git clone --depth 1 --branch 3.4.2 https://github.com/opencv/opencv_contrib.git opencv_3.4
+if [[ -d opencv_contrib ]]; then
+  CONTRIB_PATH="$DIR/opencv_contrib/modules"
+  EXTRA_ARGS="$EXTRA_ARGS -DOPENCV_EXTRA_MODULES_PATH=$CONTRIB_PATH"
+fi
+
+cd opencv_3.4
+
+# comment out the define for LIBV4L
+sed -i -e 's/\(.*HAVE_LIBV4L\)/\/\/\1/' cmake/templates/cvconfig.h.in
+sed -i -e "s/HAVE_LIBV4L YES/HAVE_LIBV4L NO/" cmake/OpenCVFindLibsVideo.cmake
+
+mkdir -p build
+cd build
+
 cmake  -D CMAKE_BUILD_TYPE=RELEASE \
        -D CMAKE_INSTALL_PREFIX=/usr/local \
-       -D WITH_CUDA=ON -D CUDA_ARCH_BIN="6.2" -D CUDA_ARCH_PTX="" \
-       -D WITH_CUBLAS=ON -D ENABLE_FAST_MATH=ON -D CUDA_FAST_MATH=ON \
-       -D ENABLE_NEON=ON -D WITH_LIBV4L=ON -D BUILD_TESTS=OFF \
-       -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF \
-       -D WITH_QT=ON -D WITH_OPENGL=ON ..
-
-sed -i -e 's/\(#define HAVE_LIBV4L\)/\/\/\1/' cvconfig.h
+       -D ENABLE_PRECOMPILED_HEADERS=OFF \
+       -D WITH_CUDA=ON \
+       -D CUDA_ARCH_BIN="6.2" \
+       -D CUDA_ARCH_PTX="" \
+       -D WITH_CUBLAS=ON \
+       -D ENABLE_FAST_MATH=ON \
+       -D CUDA_FAST_MATH=ON \
+       -D ENABLE_NEON=ON \
+       -D WITH_LIBV4L=ON \
+       -D BUILD_TESTS=OFF \
+       -D BUILD_PERF_TESTS=OFF \
+       -D BUILD_EXAMPLES=OFF \
+       -D WITH_QT=ON \
+       -D WITH_OPENGL=ON \
+       $EXTRA_ARGS \
+       ..
 
 make
 
-make install
+sudo make install
+
+echo "OpenCV_DIR=$DIR/opencv_3.4/build"
 ```
 
 After that the exact same code above works as expected in MJPEG mode.
